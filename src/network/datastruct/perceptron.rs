@@ -1,4 +1,5 @@
 use rand::distr::uniform::Error;
+use rand::Rng;
 use std::str::FromStr;
 
 pub fn function_getter(key: String) -> Result<fn(f64, f64) -> f64, String> {
@@ -8,6 +9,7 @@ pub fn function_getter(key: String) -> Result<fn(f64, f64) -> f64, String> {
     }
 }
 
+#[derive(Debug)]
 pub struct Perceptron {
     pub func: fn(f64 /* Input sum */, f64 /* Bias */) -> f64,
     pub func_id: String,
@@ -28,6 +30,19 @@ impl Perceptron {
             weights: w,
             biais: b,
         })
+    }
+
+    pub fn new_random(nb_weight: u32, w_range: &(f64, f64), b_range: &(f64, f64)) -> Self {
+        let func_id = String::from("sigmoid");
+        let func = function_getter(func_id.clone()).unwrap();
+        Perceptron {
+            func: func,
+            func_id: func_id,
+            weights: (0..nb_weight)
+                .map(|_| rand::random_range(w_range.0..w_range.1))
+                .collect(),
+            biais: rand::random_range(b_range.0..b_range.1),
+        }
     }
 
     pub fn exec(&self, inputs: &Vec<f64>) -> f64 {
