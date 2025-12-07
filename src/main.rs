@@ -29,18 +29,12 @@
 // }
 
 mod network;
-use crate::network::{
-    datastruct::perceptron::Perceptron,
-    layer::{exec_network, generate_random_network},
-};
+use crate::network::datastruct::{network::Network, perceptron::Perceptron};
 
 fn main() {
-    let network = generate_random_network(3, vec![4, 3], (0., 3.4), (-1., 1.5));
+    let network = Network::new_random(3, vec![4, 3], (0., 3.4), (-1., 1.5));
 
-    println!("{:?}", exec_network(vec![1., 2., 3.], network));
+    println!("{}", network.to_string());
 
-    let les_pieds = Perceptron::new(String::from("sigmoid 0. 1 2")).unwrap();
-    let inputs = vec![0., 0.];
-    println!("{:?}", les_pieds.exec(&inputs));
-    println!("{}", les_pieds.to_string());
+    println!("{:?}", network.exec(vec![0., 0., 0.1]));
 }
