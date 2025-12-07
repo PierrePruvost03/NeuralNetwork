@@ -3,6 +3,15 @@ use crate::network::datastruct::layer::Layer;
 pub struct Network(pub Vec<Layer>);
 
 impl Network {
+    pub fn new(config: String) -> Result<Self, String> {
+        Ok(Network(
+            config
+                .split("\n---\n")
+                .map(|line| Layer::new(String::from(line)).unwrap())
+                .collect(),
+        ))
+    }
+
     pub fn new_random(
         mut nb_input: u32,
         nb_perceptron: Vec<u32>,

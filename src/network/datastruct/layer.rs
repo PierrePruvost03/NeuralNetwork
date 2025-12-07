@@ -6,6 +6,15 @@ use crate::network::{
 pub struct Layer(Vec<Perceptron>);
 
 impl Layer {
+    pub fn new(config: String) -> Result<Self, String> {
+        Ok(Layer(
+            config
+                .split("\n")
+                .map(|line| Perceptron::new(String::from(line)).unwrap())
+                .collect(),
+        ))
+    }
+
     pub fn new_random(
         nb_perceptron: u32,
         nb_weight: u32,

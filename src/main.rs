@@ -34,7 +34,11 @@ use crate::network::datastruct::{network::Network, perceptron::Perceptron};
 fn main() {
     let network = Network::new_random(3, vec![4, 3], (0., 3.4), (-1., 1.5));
 
-    println!("{}", network.to_string());
+    let network_config = network.to_string();
+
+    let parsed_network = Network::new(network_config).unwrap();
 
     println!("{:?}", network.exec(vec![0., 0., 0.1]));
+
+    println!("{:?}", parsed_network.exec(vec![0., 0., 0.1]));
 }
