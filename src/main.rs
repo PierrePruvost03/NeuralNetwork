@@ -40,6 +40,7 @@ use crate::network::datastruct::perceptron::Perceptron;
 
 fn main() {
     let les_pieds = Perceptron::new(String::from("sigmoid 0. 1 2")).unwrap();
-    println!("{:?}", les_pieds.exec(vec![0., 0.]));
+    let inputs = vec![0., 0.];
+    println!("{:?}", les_pieds.exec(&inputs));
     println!("{}", les_pieds.to_string());
 }

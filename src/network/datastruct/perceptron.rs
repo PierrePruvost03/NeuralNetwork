@@ -30,7 +30,7 @@ impl Perceptron {
         })
     }
 
-    pub fn exec(&self, inputs: Vec<f64>) -> f64 {
+    pub fn exec(&self, inputs: &Vec<f64>) -> f64 {
         if inputs.len() != self.weights.len() {
             panic!();
         }
