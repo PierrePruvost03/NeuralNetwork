@@ -1,3 +1,5 @@
+use std::vec;
+
 use crate::network::datastruct::layer::Layer;
 
 pub struct Network(pub Vec<Layer>);
@@ -26,7 +28,7 @@ impl Network {
                     nb_input = nb;
                     r
                 })
-                .collect(),
+                .collect(),     
         )
     }
 
@@ -36,6 +38,35 @@ impl Network {
             current_inputs = layer.exec(current_inputs);
         }
         current_inputs
+    }
+
+    pub fn forward(&self, inputs: &Vec<f64>) -> Vec<Vec<f64>> {
+        let mut all_outputs: Vec<Vec<f64>> = vec![inputs.to_vec()];
+
+        for layer in &self.0 {
+            let new_output = layer.forward(&all_outputs.last().unwrap());
+            all_outputs.push(new_output);
+        }
+        return all_outputs;
+    }
+
+    pub fn train(
+        &mut self,
+        inputs: &Vec<f64>,
+        targets: &Vec<f64>,
+        learning_rate: f64
+    ) {
+        let all_outputs = self.forward(inputs);
+        let mut deltas: Vec<Vec<f64>> = vec![];
+    
+        deltas.push(self.0.last().unwrap().backward_output(all_outputs.last().unwrap(), targets));
+        for index in (0..self.0.len() - 1).rev() {
+            deltas.push(self.0[index].backward_hidden(&all_outputs[index + 1], deltas.last().unwrap(), &self.0[index + 1]));
+        }
+        deltas.reverse();
+        for index in 0..self.0.len() {
+            self.0[index].update_weights(&deltas[index], &all_outputs[index], learning_rate);
+        }
     }
 
     pub fn to_string(&self) -> String {
