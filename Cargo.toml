@@ -3,5 +3,9 @@ name = "my_torch_analyzer"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "my_torch_analyzer"
+path = "src/lib.rs"
+
 [dependencies]
 rand = "0.9.2"
