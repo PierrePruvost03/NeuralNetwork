@@ -1,3 +1,5 @@
+use std::fs;
+use std::io::Write;
 use std::vec;
 
 use crate::network::datastruct::layer::Layer;
@@ -28,7 +30,7 @@ impl Network {
                     nb_input = nb;
                     r
                 })
-                .collect(),     
+                .collect(),
         )
     }
 
@@ -50,18 +52,22 @@ impl Network {
         return all_outputs;
     }
 
-    pub fn train(
-        &mut self,
-        inputs: &Vec<f64>,
-        targets: &Vec<f64>,
-        learning_rate: f64
-    ) {
+    pub fn train(&mut self, inputs: &Vec<f64>, targets: &Vec<f64>, learning_rate: f64) {
         let all_outputs = self.forward(inputs);
         let mut deltas: Vec<Vec<f64>> = vec![];
-    
-        deltas.push(self.0.last().unwrap().backward_output(all_outputs.last().unwrap(), targets));
+
+        deltas.push(
+            self.0
+                .last()
+                .unwrap()
+                .backward_output(all_outputs.last().unwrap(), targets),
+        );
         for index in (0..self.0.len() - 1).rev() {
-            deltas.push(self.0[index].backward_hidden(&all_outputs[index + 1], deltas.last().unwrap(), &self.0[index + 1]));
+            deltas.push(self.0[index].backward_hidden(
+                &all_outputs[index + 1],
+                deltas.last().unwrap(),
+                &self.0[index + 1],
+            ));
         }
         deltas.reverse();
         for index in 0..self.0.len() {
@@ -75,5 +81,18 @@ impl Network {
             .map(|l| l.to_string())
             .collect::<Vec<_>>()
             .join("\n---\n")
+    }
+
+    pub fn save(&self, path: &str) -> Result<(), String> {
+        let content = self.to_string();
+
+        fs::write(path, content).map_err(|e| format!("Failed to save network to {}: {}", path, e))
+    }
+
+    pub fn load(path: &str) -> Result<Self, String> {
+        let content = fs::read_to_string(path)
+            .map_err(|e| format!("Failed to load network from {}: {}", path, e))?;
+
+        Network::new(content)
     }
 }
