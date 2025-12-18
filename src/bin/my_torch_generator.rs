@@ -134,21 +134,7 @@ fn print_help() {
     println!("    # Generate from multiple configs");
     println!("    ./my_torch_generator configs/fast.conf 2 configs/deep.conf 1");
     println!();
-    println!("OUTPUT");
-    println!("    Networks are saved as .nn files:");
-    println!("    - Single network: <name>.nn");
-    println!("    - Multiple networks: <name>_1.nn, <name>_2.nn, ...");
-    println!();
     println!("    Example:");
     println!("    $ ./my_torch_generator configs/default.conf 3");
     println!("    Creates: default_1.nn, default_2.nn, default_3.nn");
-    println!();
-    println!("CONFIGURATION FILES");
-    println!("    Available configs in configs/:");
-    println!("    - default.conf     Standard balanced configuration");
-    println!("    - fast.conf        Quick training, simpler architecture");
-    println!("    - deep.conf        Deep architecture, maximum capacity");
-    println!("    - aggressive.conf  High learning rate, wide architecture");
-    println!();
-    println!("    See CONFIGURATION_GUIDE.md for details on creating custom configs.");
 }
