@@ -1,11 +1,4 @@
-use std::ops::Index;
-
-use rand::distr::Iter;
-
-use crate::network::{
-    self,
-    datastruct::perceptron::{self, Perceptron, sigmoid_derivate},
-};
+use crate::network::datastruct::perceptron::{sigmoid_derivate, Perceptron};
 
 pub struct Layer(Vec<Perceptron>);
 
@@ -40,11 +33,9 @@ impl Layer {
         self.0.iter().map(|p| p.exec(&inputs)).collect()
     }
 
-    pub fn backward_output(
-        &self, outputs: &Vec<f64>, targets: &Vec<f64>
-    ) -> Vec<f64> {
+    pub fn backward_output(&self, outputs: &Vec<f64>, targets: &Vec<f64>) -> Vec<f64> {
         let mut deltas: Vec<f64> = vec![];
-    
+
         for index in 0..outputs.len() {
             let output_error = targets[index] - outputs[index];
             let output_delta = output_error * sigmoid_derivate(outputs[index]);
@@ -57,7 +48,7 @@ impl Layer {
         &self,
         outputs: &Vec<f64>,
         next_deltas: &Vec<f64>,
-        next_layer: &Layer
+        next_layer: &Layer,
     ) -> Vec<f64> {
         let mut deltas: Vec<f64> = vec![];
         for i in 0..self.0.len() {
@@ -70,18 +61,13 @@ impl Layer {
         return deltas;
     }
 
-    pub fn update_weights(
-        &mut self,
-        deltas: &Vec<f64>,
-        inputs: &Vec<f64>,
-        learning_rate: f64,
-    ) {
-    for i in 0..self.0.len() {
-        for j in 0..self.0[i].weights.len() {
-            self.0[i].weights[j] += learning_rate * deltas[i] * inputs[j];
+    pub fn update_weights(&mut self, deltas: &Vec<f64>, inputs: &Vec<f64>, learning_rate: f64) {
+        for i in 0..self.0.len() {
+            for j in 0..self.0[i].weights.len() {
+                self.0[i].weights[j] += learning_rate * deltas[i] * inputs[j];
+            }
+            self.0[i].biais += learning_rate * deltas[i];
         }
-        self.0[i].biais += learning_rate * deltas[i];
-        }  
     }
 
     pub fn to_string(&self) -> String {

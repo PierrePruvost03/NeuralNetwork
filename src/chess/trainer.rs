@@ -3,6 +3,7 @@ use crate::chess::fen::FenPosition;
 use crate::network::datastruct::network::Network;
 use crate::parse_config::Config;
 use rand::seq::SliceRandom;
+#[allow(deprecated)]
 use rand::thread_rng;
 use std::fs;
 
@@ -54,6 +55,7 @@ pub fn run_train(config: &Config) -> Result<(), String> {
 
     // Shuffle the dataset to ensure random distribution in train/val split
     println!("Shuffling dataset...");
+    #[allow(deprecated)]
     let mut rng = thread_rng();
     training_data.shuffle(&mut rng);
 
@@ -197,14 +199,14 @@ fn train_network(
                 train_loss += loss;
             }
         } else {
-            // Mini-batch gradient descent
             for batch_start in (0..train_set.len()).step_by(train_config.batch_size) {
                 let batch_end = (batch_start + train_config.batch_size).min(train_set.len());
 
-                for i in batch_start..batch_end {
-                    let (inputs, targets) = &train_set[i];
-                    network.train(inputs, targets, learning_rate);
+                let batch = &train_set[batch_start..batch_end];
 
+                network.train_batch(batch, learning_rate);
+
+                for (inputs, targets) in batch {
                     let outputs = network.exec(inputs.clone());
                     let loss = calculate_mse(&outputs, targets);
                     train_loss += loss;

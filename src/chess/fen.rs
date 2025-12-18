@@ -1,11 +1,13 @@
 #[derive(Debug, Clone)]
 pub struct FenPosition {
     pub board: [char; 64],
-    pub active_color: char, // 'w' or 'b'
-    pub castling: String,   // Droits de roque : combinaison de K, Q, k, q ou "-"
-    pub en_passant: String, // Case en passant possible ou "-"
-    pub halfmove: u32,      // Nombre de demi-coups depuis la dernière capture ou mouvement de pion
-    pub fullmove: u32,      // Numéro du coup
+    pub active_color: char,
+    pub castling: String,
+    pub en_passant: String,
+    #[allow(dead_code)]
+    pub halfmove: u32,
+    #[allow(dead_code)]
+    pub fullmove: u32,
 }
 
 impl FenPosition {

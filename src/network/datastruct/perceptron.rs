@@ -1,10 +1,8 @@
-use rand::distr::uniform::Error;
-use rand::Rng;
 use std::str::FromStr;
 
 pub fn function_getter(key: String) -> Result<fn(f64, f64) -> f64, String> {
     match key.as_str() {
-        "sigmoid" => Ok(|i, b| 1. / (1. + (- (i + b)).exp())),
+        "sigmoid" => Ok(|i, b| 1. / (1. + (-(i + b)).exp())),
         _ => Err(format!("unknow function '{}'", key)),
     }
 }

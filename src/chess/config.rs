@@ -147,6 +147,7 @@ impl TrainingConfig {
         }
     }
 
+    #[allow(dead_code)]
     pub fn save(&self, path: &str) -> Result<(), String> {
         let content = self.to_string();
         fs::write(path, content).map_err(|e| format!("Cannot write config file {}: {}", path, e))
@@ -261,6 +262,7 @@ impl TrainingConfig {
         numbers.map_err(|_| format!("Invalid hidden_layers format: {}", s))
     }
 
+    #[warn(unused)]
     fn format_vec_u32(&self, vec: &Vec<u32>) -> String {
         format!(
             "[{}]",
