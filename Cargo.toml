@@ -7,5 +7,18 @@ edition = "2021"
 name = "my_torch_analyzer"
 path = "src/lib.rs"
 
+[[bin]]
+name = "my_torch_analyzer"
+path = "src/main.rs"
+
+[[bin]]
+name = "my_torch_generator"
+path = "src/bin/my_torch_generator.rs"
+
+# Exemple : pour ajouter un troisième binaire, décommente et crée le fichier
+# [[bin]]
+# name = "my_torch_benchmark"
+# path = "src/bin/my_torch_benchmark.rs"
+
 [dependencies]
 rand = "0.9.2"
