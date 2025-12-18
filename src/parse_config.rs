@@ -12,6 +12,7 @@ pub struct Config {
     pub loadfile: String,
     pub chessfile: String,
     pub savefile: Option<String>,
+    pub configfile: Option<String>,
 }
 
 impl Config {
@@ -29,6 +30,7 @@ impl Config {
 
         let mut mode: Option<Mode> = None;
         let mut savefile: Option<String> = None;
+        let mut configfile: Option<String> = None;
         let mut loadfile: Option<String> = None;
         let mut chessfile: Option<String> = None;
 
@@ -57,6 +59,14 @@ impl Config {
                     savefile = Some(args[i].clone());
                     i += 1;
                 }
+                "--config" => {
+                    if i + 1 >= args.len() {
+                        return Err(String::from("--config requires a filename"));
+                    }
+                    i += 1;
+                    configfile = Some(args[i].clone());
+                    i += 1;
+                }
                 _ => {
                     if loadfile.is_none() {
                         loadfile = Some(args[i].clone());
@@ -83,13 +93,14 @@ impl Config {
             loadfile,
             chessfile,
             savefile,
+            configfile,
         })
     }
 
     pub fn print_help() {
         println!("USAGE");
         println!(
-            "    ./my_torch_analyzer [--predict | --train [--save SAVEFILE]] LOADFILE CHESSFILE"
+            "    ./my_torch_analyzer [--predict | --train [--save SAVEFILE] [--config CONFIGFILE]] LOADFILE CHESSFILE"
         );
         println!();
         println!("DESCRIPTION");
@@ -105,6 +116,10 @@ impl Config {
         println!("                  output.");
         println!();
         println!("    --save        Save neural network into SAVEFILE. Only works in train mode.");
+        println!();
+        println!("    --config      Configuration file for training hyperparameters (.conf file).");
+        println!("                  If not specified, uses default configuration.");
+        println!("                  Only works in train mode.");
         println!();
         println!("    LOADFILE      File containing an artificial neural network");
         println!();
