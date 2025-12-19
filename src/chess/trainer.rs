@@ -3,7 +3,6 @@ use crate::chess::fen::FenPosition;
 use crate::network::datastruct::network::Network;
 use crate::parse_config::Config;
 use rand::seq::SliceRandom;
-#[allow(deprecated)]
 use rand::thread_rng;
 use std::fs;
 
@@ -36,7 +35,17 @@ pub fn run_train(config: &Config) -> Result<(), String> {
 
     let mut network = if std::path::Path::new(&config.loadfile).exists() {
         println!("Loading existing network from '{}'...", config.loadfile);
-        Network::load(&config.loadfile)?
+        let mut net = Network::load(&config.loadfile)?;
+
+        let dropout_rates = vec![0.2, 0.2, 0.1, 0.0, 0.0];
+        println!("  Reconfiguring dropout rates: {:?}", dropout_rates);
+        for (idx, layer) in net.0.iter_mut().enumerate() {
+            if idx < dropout_rates.len() {
+                layer.set_dropout(dropout_rates[idx]);
+            }
+        }
+
+        net
     } else {
         println!(
             "Creating new network (file '{}' not found)...",
@@ -66,8 +75,8 @@ pub fn run_train(config: &Config) -> Result<(), String> {
         val_set.len()
     );
 
-    println!("\nStarting training...");
-    train_network(&mut network, &train_set, &val_set, &train_config)?;
+    println!("\nStarting training with Softmax + Cross-Entropy...");
+    train_network_softmax(&mut network, &train_set, &val_set, &train_config)?;
 
     let save_path = config.savefile.as_ref().unwrap_or(&config.loadfile);
     println!("\nSaving trained network to '{}'...", save_path);
@@ -78,23 +87,29 @@ pub fn run_train(config: &Config) -> Result<(), String> {
 }
 
 fn create_chess_network(train_config: &TrainingConfig) -> Result<Network, String> {
-    let input_size = 832; // 64 cases * 13 états
-    let output_size = 3; // Nothing, Check, Checkmate
+    let input_size = 833; // 64 cases * 13 états + 1 (active_color)
+    let output_size = 5; // Nothing, Check White, Check Black, Checkmate White, Checkmate Black
 
     let mut layers = train_config.hidden_layers.clone();
     layers.push(output_size);
 
     println!("  Architecture: {} -> {:?}", input_size, layers);
 
-    let weight_range = (train_config.weight_min, train_config.weight_max);
-    let bias_range = (train_config.bias_min, train_config.bias_max);
+    let dropout_rates = vec![0.2, 0.2, 0.1, 0.0, 0.0];
 
-    Ok(Network::new_random(
-        input_size,
-        layers,
-        weight_range,
-        bias_range,
-    ))
+    println!("  Using He initialization with ReLU activation");
+    println!("  Dropout rates: {:?}", dropout_rates);
+
+    let network = Network::new_random_he(
+        input_size as u32,
+        layers.iter().map(|&x| x as u32).collect(),
+        dropout_rates,
+        "linear",
+    );
+
+    println!("  Total parameters: {}", network.count_parameters());
+
+    Ok(network)
 }
 
 fn read_training_file(path: &str) -> Result<Vec<(String, String)>, String> {
@@ -150,21 +165,19 @@ fn convert_to_training_data(
 }
 
 fn label_to_targets(label: &str) -> Result<Vec<f64>, String> {
-    let normalized = if label.contains("Nothing") {
-        "Nothing"
-    } else if label.contains("Checkmate") {
-        "Checkmate"
-    } else if label.contains("Check") {
-        "Check"
+    // Pour 5 classes: Nothing, Check White, Check Black, Checkmate White, Checkmate Black
+    if label.contains("Nothing") {
+        Ok(vec![1.0, 0.0, 0.0, 0.0, 0.0])
+    } else if label.contains("Checkmate White") {
+        Ok(vec![0.0, 0.0, 0.0, 1.0, 0.0])
+    } else if label.contains("Checkmate Black") {
+        Ok(vec![0.0, 0.0, 0.0, 0.0, 1.0])
+    } else if label.contains("Check White") {
+        Ok(vec![0.0, 1.0, 0.0, 0.0, 0.0])
+    } else if label.contains("Check Black") {
+        Ok(vec![0.0, 0.0, 1.0, 0.0, 0.0])
     } else {
-        return Err(format!("Unknown label: {}", label));
-    };
-
-    match normalized {
-        "Nothing" => Ok(vec![1.0, 0.0, 0.0]),
-        "Check" => Ok(vec![0.0, 1.0, 0.0]),
-        "Checkmate" => Ok(vec![0.0, 0.0, 1.0]),
-        _ => Err(format!("Unknown label: {}", label)),
+        Err(format!("Unknown label: {}", label))
     }
 }
 
@@ -175,7 +188,7 @@ fn split_dataset<T: Clone>(data: &Vec<T>, train_ratio: f64) -> (Vec<T>, Vec<T>) 
     (train_set, val_set)
 }
 
-fn train_network(
+fn train_network_softmax(
     network: &mut Network,
     train_set: &Vec<(Vec<f64>, Vec<f64>)>,
     val_set: &Vec<(Vec<f64>, Vec<f64>)>,
@@ -191,35 +204,49 @@ fn train_network(
         let learning_rate = train_config.get_learning_rate(epoch);
         let mut train_loss = 0.0;
 
+        let mut shuffled_train_set = train_set.clone();
+        let mut rng = thread_rng();
+        shuffled_train_set.shuffle(&mut rng);
+
+        network.set_training_mode(true);
+
         if train_config.batch_size == 1 {
-            for (inputs, targets) in train_set {
-                network.train(inputs, targets, learning_rate);
+            for (inputs, targets) in &shuffled_train_set {
+                network.train_softmax_ce(inputs, targets, learning_rate);
                 let outputs = network.exec(inputs.clone());
-                let loss = calculate_mse(&outputs, targets);
+                let loss = calculate_cross_entropy(&outputs, targets);
                 train_loss += loss;
             }
         } else {
-            for batch_start in (0..train_set.len()).step_by(train_config.batch_size) {
-                let batch_end = (batch_start + train_config.batch_size).min(train_set.len());
+            for batch_start in (0..shuffled_train_set.len()).step_by(train_config.batch_size) {
+                let batch_end =
+                    (batch_start + train_config.batch_size).min(shuffled_train_set.len());
 
-                let batch = &train_set[batch_start..batch_end];
+                let batch = &shuffled_train_set[batch_start..batch_end].to_vec();
 
-                network.train_batch(batch, learning_rate);
+                network.train_batch_softmax_ce(batch, learning_rate);
 
                 for (inputs, targets) in batch {
                     let outputs = network.exec(inputs.clone());
-                    let loss = calculate_mse(&outputs, targets);
+                    let loss = calculate_cross_entropy(&outputs, targets);
                     train_loss += loss;
                 }
             }
         }
-        train_loss /= train_set.len() as f64;
+        train_loss /= shuffled_train_set.len() as f64;
+
+        if let Err(e) = network.check_gradients() {
+            eprintln!("Gradient check failed at epoch {}: {}", epoch, e);
+            return Err(format!("Training diverged at epoch {}: {}", epoch, e));
+        }
+
+        network.set_training_mode(false);
 
         let mut val_loss = 0.0;
         let mut correct = 0;
         for (inputs, targets) in val_set {
             let outputs = network.exec(inputs.clone());
-            let loss = calculate_mse(&outputs, targets);
+            let loss = calculate_cross_entropy(&outputs, targets);
             val_loss += loss;
 
             if are_predictions_equal(&outputs, targets) {
@@ -244,27 +271,35 @@ fn train_network(
             }
         }
 
-        if epoch % 10 == 0 || epoch == epochs - 1 {
-            println!(
-                "Epoch {}: train_loss={:.6}, val_loss={:.6}, val_acc={:.2}%, lr={:.6}",
-                epoch, train_loss, val_loss, val_accuracy, learning_rate
-            );
-        }
+        println!(
+            "Epoch {}: train_loss={:.6}, val_loss={:.6}, val_acc={:.2}%, lr={:.6}",
+            epoch, train_loss, val_loss, val_accuracy, learning_rate
+        );
     }
-
-    println!("\nTraining completed!");
-    println!("  Best validation loss: {:.6}", best_val_loss);
 
     Ok(())
 }
 
-fn calculate_mse(outputs: &Vec<f64>, targets: &Vec<f64>) -> f64 {
-    outputs
+fn softmax(outputs: &Vec<f64>) -> Vec<f64> {
+    let max = outputs.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+    let exp_values: Vec<f64> = outputs.iter().map(|&x| (x - max).exp()).collect();
+    let sum: f64 = exp_values.iter().sum();
+    exp_values.iter().map(|&x| x / sum).collect()
+}
+
+fn calculate_cross_entropy(outputs: &Vec<f64>, targets: &Vec<f64>) -> f64 {
+    let epsilon = 1e-15;
+
+    let softmax_outputs = softmax(outputs);
+
+    softmax_outputs
         .iter()
         .zip(targets.iter())
-        .map(|(o, t)| (o - t).powi(2))
+        .map(|(o, t)| {
+            let o_clipped = o.clamp(epsilon, 1.0 - epsilon);
+            -t * o_clipped.ln()
+        })
         .sum::<f64>()
-        / outputs.len() as f64
 }
 
 fn are_predictions_equal(outputs: &Vec<f64>, targets: &Vec<f64>) -> bool {

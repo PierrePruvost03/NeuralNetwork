@@ -125,7 +125,7 @@ impl FenPosition {
 
     // Encode la position en vecteur d'inputs pour le réseau de neurones
     pub fn to_inputs(&self) -> Vec<f64> {
-        let mut inputs = vec![0.0; 832];
+        let mut inputs = vec![0.0; 833];
 
         for (i, &piece) in self.board.iter().enumerate() {
             let piece_idx = Self::piece_to_index(piece);
@@ -133,7 +133,8 @@ impl FenPosition {
             inputs[input_idx] = 1.0;
         }
 
-        // TODO: On pourrait ajouter qui joue
+        inputs[832] = if self.active_color == 'w' { 1.0 } else { 0.0 };
+
         inputs
     }
 
@@ -208,7 +209,7 @@ mod tests {
         let pos = FenPosition::parse(fen).unwrap();
         let inputs = pos.to_inputs();
 
-        assert_eq!(inputs.len(), 832); // 64 × 13
+        assert_eq!(inputs.len(), 833); // 64 × 13 + 1 (active color)
 
         // La case a1 (index 56) contient un roi blanc (K)
         // Donc l'input à l'index 56*13 + 6 devrait être 1.0
