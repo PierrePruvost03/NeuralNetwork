@@ -48,7 +48,7 @@ impl Network {
             let new_output = layer.forward(&all_outputs.last().unwrap());
             all_outputs.push(new_output);
         }
-        return all_outputs;
+        all_outputs
     }
 
     pub fn train(&mut self, inputs: &Vec<f64>, targets: &Vec<f64>, learning_rate: f64) {

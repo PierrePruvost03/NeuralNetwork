@@ -34,14 +34,11 @@ impl Layer {
     }
 
     pub fn backward_output(&self, outputs: &Vec<f64>, targets: &Vec<f64>) -> Vec<f64> {
-        let mut deltas: Vec<f64> = vec![];
-
-        for index in 0..outputs.len() {
-            let output_error = targets[index] - outputs[index];
-            let output_delta = output_error * sigmoid_derivate(outputs[index]);
-            deltas.push(output_delta);
-        }
-        deltas
+        outputs
+            .iter()
+            .zip(targets.iter())
+            .map(|(output, target)| (target - output) * sigmoid_derivate(*output))
+            .collect()
     }
 
     pub fn backward_hidden(
@@ -52,13 +49,16 @@ impl Layer {
     ) -> Vec<f64> {
         let mut deltas: Vec<f64> = vec![];
         for i in 0..self.0.len() {
-            let mut error_sum = 0.;
-            for j in 0..next_layer.0.len() {
-                error_sum += next_layer.0[j].weights[i] * next_deltas[j];
-            }
+
+            let error_sum: f64 = next_layer
+                .0
+                .iter()
+                .zip(next_deltas.iter())
+                .map(|(perceptron, delta)| perceptron.weights[i] * delta)
+                .sum();
             deltas.push(error_sum * sigmoid_derivate(outputs[i]));
         }
-        return deltas;
+        deltas
     }
 
     pub fn update_weights(&mut self, deltas: &Vec<f64>, inputs: &Vec<f64>, learning_rate: f64) {
