@@ -74,9 +74,9 @@ fn generate_networks(config_file: &str, nb: usize) -> Result<usize, String> {
 
     let base_name = extract_base_name(config_file);
 
-    let input_size = 832; // 64 squares × 13 states
+    let input_size = 833; // 64 squares × 13 states + 1 (active_color)
 
-    let output_size = 3; // Nothing, Check, Checkmate
+    let output_size = 5; // Nothing, Check White, Check Black, Checkmate White, Checkmate Black
 
     let mut layers = config.hidden_layers.clone();
     layers.push(output_size);
