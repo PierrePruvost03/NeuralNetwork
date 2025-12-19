@@ -8,7 +8,7 @@ pub fn function_getter(key: String) -> Result<fn(f64, f64) -> f64, String> {
 }
 
 pub fn sigmoid_derivate(output: f64) -> f64 {
-    return output * (1.0 - output);
+    output * (1.0 - output)
 }
 #[derive(Debug)]
 pub struct Perceptron {

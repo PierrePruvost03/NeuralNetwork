@@ -58,7 +58,7 @@ impl Layer {
             }
             deltas.push(error_sum * sigmoid_derivate(outputs[i]));
         }
-        return deltas;
+        deltas
     }
 
     pub fn update_weights(&mut self, deltas: &Vec<f64>, inputs: &Vec<f64>, learning_rate: f64) {
