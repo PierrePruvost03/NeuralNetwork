@@ -1,14 +1,53 @@
+use rand::thread_rng;
+use rand::Rng;
+use rand_distr::{Distribution, Normal};
 use std::str::FromStr;
 
 pub fn function_getter(key: String) -> Result<fn(f64, f64) -> f64, String> {
     match key.as_str() {
         "sigmoid" => Ok(|i, b| 1. / (1. + (-(i + b)).exp())),
+        "relu" => Ok(|i, b| {
+            let x = i + b;
+            if x > 0.0 {
+                x
+            } else {
+                0.0
+            }
+        }),
+        "tanh" => Ok(|i, b| (i + b).tanh()),
+        "linear" => Ok(|i, b| i + b),
         _ => Err(format!("unknow function '{}'", key)),
     }
 }
 
 pub fn sigmoid_derivate(output: f64) -> f64 {
     output * (1.0 - output)
+}
+
+pub fn relu_derivate(output: f64) -> f64 {
+    if output > 0.0 {
+        1.0
+    } else {
+        0.0
+    }
+}
+
+pub fn tanh_derivate(output: f64) -> f64 {
+    return 1.0 - output * output;
+}
+
+pub fn linear_derivate(_output: f64) -> f64 {
+    return 1.0;
+}
+
+pub fn get_derivative(func_id: &str) -> fn(f64) -> f64 {
+    match func_id {
+        "sigmoid" => sigmoid_derivate,
+        "relu" => relu_derivate,
+        "tanh" => tanh_derivate,
+        "linear" => linear_derivate,
+        _ => sigmoid_derivate,
+    }
 }
 #[derive(Debug)]
 pub struct Perceptron {
@@ -33,16 +72,54 @@ impl Perceptron {
         })
     }
 
+    #[allow(dead_code)]
     pub fn new_random(nb_weight: u32, w_range: &(f64, f64), b_range: &(f64, f64)) -> Self {
-        let func_id = String::from("sigmoid");
+        Self::new_random_with_activation(nb_weight, w_range, b_range, "relu")
+    }
+
+    #[allow(dead_code)]
+    pub fn new_random_with_activation(
+        nb_weight: u32,
+        w_range: &(f64, f64),
+        b_range: &(f64, f64),
+        activation: &str,
+    ) -> Self {
+        let func_id = String::from(activation);
         let func = function_getter(func_id.clone()).unwrap();
         Perceptron {
             func: func,
             func_id: func_id,
             weights: (0..nb_weight)
-                .map(|_| rand::random_range(w_range.0..w_range.1))
+                .map(|_| {
+                    let mut rng = thread_rng();
+                    rng.gen_range(w_range.0..w_range.1)
+                })
                 .collect(),
-            biais: rand::random_range(b_range.0..b_range.1),
+            biais: {
+                let mut rng = thread_rng();
+                rng.gen_range(b_range.0..b_range.1)
+            },
+        }
+    }
+
+    pub fn new_random_he(nb_weight: u32, activation: &str) -> Self {
+        let mut rng = thread_rng();
+
+        let std_dev = if activation == "relu" {
+            (2.0 / nb_weight as f64).sqrt()
+        } else {
+            (1.0 / nb_weight as f64).sqrt()
+        };
+
+        let normal = Normal::new(0.0, std_dev).unwrap();
+        let func_id = String::from(activation);
+        let func = function_getter(func_id.clone()).unwrap();
+
+        Perceptron {
+            func: func,
+            func_id: func_id,
+            weights: (0..nb_weight).map(|_| normal.sample(&mut rng)).collect(),
+            biais: 0.0,
         }
     }
 
