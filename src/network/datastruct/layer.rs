@@ -113,13 +113,6 @@ impl Layer {
 
     #[allow(dead_code)]
     pub fn backward_output(&self, outputs: &Vec<f64>, targets: &Vec<f64>) -> Vec<f64> {
-<<<<<<< HEAD
-        outputs
-            .iter()
-            .zip(targets.iter())
-            .map(|(output, target)| (target - output) * sigmoid_derivate(*output))
-            .collect()
-=======
         let mut deltas: Vec<f64> = vec![];
 
         for index in 0..outputs.len() {
@@ -129,7 +122,6 @@ impl Layer {
             deltas.push(output_delta);
         }
         deltas
->>>>>>> 11e8438ab9fa2c35e9f331907c776c618f6dab6d
     }
 
     pub fn backward_hidden(
@@ -139,17 +131,6 @@ impl Layer {
         next_layer: &Layer,
     ) -> Vec<f64> {
         let mut deltas: Vec<f64> = vec![];
-<<<<<<< HEAD
-        for i in 0..self.0.len() {
-
-            let error_sum: f64 = next_layer
-                .0
-                .iter()
-                .zip(next_deltas.iter())
-                .map(|(perceptron, delta)| perceptron.weights[i] * delta)
-                .sum();
-            deltas.push(error_sum * sigmoid_derivate(outputs[i]));
-=======
         for i in 0..self.neurons.len() {
             let derivative = get_derivative(&self.neurons[i].func_id);
             let mut error_sum = 0.;
@@ -157,7 +138,6 @@ impl Layer {
                 error_sum += next_layer.neurons[j].weights[i] * next_deltas[j];
             }
             deltas.push(error_sum * derivative(outputs[i]));
->>>>>>> 11e8438ab9fa2c35e9f331907c776c618f6dab6d
         }
         deltas
     }
