@@ -22,6 +22,13 @@ bias_min = -0.1
 bias_max = 0.1
 ```
 
+the neural network will always have 833 inputs (for every possibility on a chessboard)
+and 5 outputs (Nothing, Check White, Check Black, Checkmate White, Checkmate Black)
+
+## Analizer
+
+...
+
 ## Contributors
 | Pierre Pruvost | Kerwan Calvier | Abel Daverio |
 |-----------------------------------------------------------|-----------------------------------------------------------|-----------------------------------------------------------|
