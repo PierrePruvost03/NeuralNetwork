@@ -33,22 +33,6 @@ impl Layer {
     }
 
     #[allow(dead_code)]
-    pub fn new_random(
-        nb_perceptron: u32,
-        nb_weight: u32,
-        w_range: &(f64, f64),
-        b_range: &(f64, f64),
-    ) -> Layer {
-        Layer {
-            neurons: (0..nb_perceptron)
-                .map(|_| Perceptron::new_random(nb_weight, w_range, b_range))
-                .collect(),
-            dropout_rate: 0.0,
-            training_mode: false,
-        }
-    }
-
-    #[allow(dead_code)]
     pub fn new_random_with_activation(
         nb_perceptron: u32,
         nb_weight: u32,

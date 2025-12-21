@@ -73,11 +73,6 @@ impl Perceptron {
     }
 
     #[allow(dead_code)]
-    pub fn new_random(nb_weight: u32, w_range: &(f64, f64), b_range: &(f64, f64)) -> Self {
-        Self::new_random_with_activation(nb_weight, w_range, b_range, "relu")
-    }
-
-    #[allow(dead_code)]
     pub fn new_random_with_activation(
         nb_weight: u32,
         w_range: &(f64, f64),

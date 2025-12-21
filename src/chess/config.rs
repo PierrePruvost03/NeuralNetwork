@@ -20,6 +20,10 @@ pub struct TrainingConfig {
     pub bias_min: f64,
     pub bias_max: f64,
 
+    // Dropout
+    pub dropout_rate: f64,
+    pub dropout_rates: Vec<f64>,
+
     // Learning rate decay
     pub lr_decay_enabled: bool,
     pub lr_decay_rate: f64,
@@ -118,6 +122,14 @@ impl TrainingConfig {
                         .parse()
                         .map_err(|_| format!("Invalid lr_decay_step: {}", value))?;
                 }
+                "dropout_rate" => {
+                    config.dropout_rate = value
+                        .parse()
+                        .map_err(|_| format!("Invalid dropout_rate: {}", value))?;
+                }
+                "dropout_rates" => {
+                    config.dropout_rates = Self::parse_vec_f64(value)?;
+                }
                 _ => {
                     return Err(format!("Unknown configuration key: {}", key));
                 }
@@ -141,6 +153,8 @@ impl TrainingConfig {
             weight_max: 0.3,
             bias_min: -0.1,
             bias_max: 0.1,
+            dropout_rate: 0.0,
+            dropout_rates: vec![],
             lr_decay_enabled: false,
             lr_decay_rate: 0.95,
             lr_decay_step: 100,
@@ -174,6 +188,10 @@ impl TrainingConfig {
             bias_min = {}\n\
             bias_max = {}\n\
             \n\
+            # Dropout regularization\n\
+            dropout_rate = {}\n\
+            dropout_rates = {}\n\
+            \n\
             # Learning rate decay\n\
             lr_decay_enabled = {}\n\
             lr_decay_rate = {}\n\
@@ -188,6 +206,8 @@ impl TrainingConfig {
             self.weight_max,
             self.bias_min,
             self.bias_max,
+            self.dropout_rate,
+            self.format_vec_f64(&self.dropout_rates),
             self.lr_decay_enabled,
             self.lr_decay_rate,
             self.lr_decay_step,
@@ -244,6 +264,22 @@ impl TrainingConfig {
             return Err(String::from("lr_decay_step must be > 0"));
         }
 
+        if self.dropout_rate < 0.0 || self.dropout_rate >= 1.0 {
+            return Err(format!(
+                "Invalid dropout_rate: {} (must be 0 <= rate < 1)",
+                self.dropout_rate
+            ));
+        }
+
+        for (idx, &rate) in self.dropout_rates.iter().enumerate() {
+            if rate < 0.0 || rate >= 1.0 {
+                return Err(format!(
+                    "Invalid dropout_rates[{}]: {} (must be 0 <= rate < 1)",
+                    idx, rate
+                ));
+            }
+        }
+
         Ok(())
     }
 
@@ -262,8 +298,41 @@ impl TrainingConfig {
         numbers.map_err(|_| format!("Invalid hidden_layers format: {}", s))
     }
 
+    /// Format : "[0.2, 0.3, 0.1]" ou "0.2, 0.3, 0.1" ou "0.2 0.3 0.1"
+    fn parse_vec_f64(s: &str) -> Result<Vec<f64>, String> {
+        let s = s.trim();
+
+        // If empty or "[]", return empty vector
+        if s.is_empty() || s == "[]" {
+            return Ok(vec![]);
+        }
+
+        let s = s.trim_start_matches('[').trim_end_matches(']');
+
+        let numbers: Result<Vec<f64>, _> = s
+            .split(|c| c == ',' || c == ' ')
+            .filter(|x| !x.is_empty())
+            .map(|x| x.trim().parse())
+            .collect();
+
+        numbers.map_err(|_| format!("Invalid dropout_rates format: {}", s))
+    }
+
     #[warn(unused)]
     fn format_vec_u32(&self, vec: &Vec<u32>) -> String {
+        format!(
+            "[{}]",
+            vec.iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+
+    fn format_vec_f64(&self, vec: &Vec<f64>) -> String {
+        if vec.is_empty() {
+            return String::from("[]");
+        }
         format!(
             "[{}]",
             vec.iter()
@@ -287,6 +356,21 @@ impl TrainingConfig {
             self.learning_rate * self.lr_decay_rate.powi(decay_count as i32)
         } else {
             self.learning_rate
+        }
+    }
+
+    /// Get dropout rates for all layers (including output layer)
+    #[allow(dead_code)]
+    pub fn get_dropout_rates(&self) -> Vec<f64> {
+        if !self.dropout_rates.is_empty() {
+            // Use custom rates if specified
+            self.dropout_rates.clone()
+        } else {
+            // Use uniform dropout_rate for all hidden layers, 0.0 for output
+            let num_layers = self.hidden_layers.len() + 1; // +1 for output layer
+            let mut rates = vec![self.dropout_rate; num_layers - 1];
+            rates.push(0.0); // No dropout on output layer
+            rates
         }
     }
 }
@@ -374,5 +458,57 @@ mod tests {
         config.epochs = 100;
         config.train_ratio = 1.5;
         assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_parse_dropout_rates() {
+        assert_eq!(
+            TrainingConfig::parse_vec_f64("[0.2, 0.3, 0.1]").unwrap(),
+            vec![0.2, 0.3, 0.1]
+        );
+        assert_eq!(
+            TrainingConfig::parse_vec_f64("0.2, 0.3, 0.1").unwrap(),
+            vec![0.2, 0.3, 0.1]
+        );
+        assert_eq!(
+            TrainingConfig::parse_vec_f64("0.2 0.3 0.1").unwrap(),
+            vec![0.2, 0.3, 0.1]
+        );
+        assert_eq!(TrainingConfig::parse_vec_f64("[]").unwrap(), vec![]);
+        assert_eq!(TrainingConfig::parse_vec_f64("").unwrap(), vec![]);
+    }
+
+    #[test]
+    fn test_get_dropout_rates() {
+        let mut config = TrainingConfig::default();
+        config.hidden_layers = vec![256, 128, 64];
+        config.dropout_rate = 0.2;
+
+        // Should apply 0.2 to all hidden layers, 0.0 to output
+        assert_eq!(config.get_dropout_rates(), vec![0.2, 0.2, 0.2, 0.0]);
+
+        // Custom rates override dropout_rate
+        config.dropout_rates = vec![0.3, 0.2, 0.1, 0.0];
+        assert_eq!(config.get_dropout_rates(), vec![0.3, 0.2, 0.1, 0.0]);
+    }
+
+    #[test]
+    fn test_dropout_validation() {
+        let mut config = TrainingConfig::default();
+
+        config.dropout_rate = -0.1;
+        assert!(config.validate().is_err());
+
+        config.dropout_rate = 1.0;
+        assert!(config.validate().is_err());
+
+        config.dropout_rate = 0.5;
+        assert!(config.validate().is_ok());
+
+        config.dropout_rates = vec![0.2, 1.5, 0.1];
+        assert!(config.validate().is_err());
+
+        config.dropout_rates = vec![0.2, 0.3, 0.1];
+        assert!(config.validate().is_ok());
     }
 }
