@@ -3,14 +3,6 @@ use std::vec;
 
 use crate::network::datastruct::layer::Layer;
 
-#[allow(dead_code)]
-fn softmax(outputs: &Vec<f64>) -> Vec<f64> {
-    let max = outputs.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-    let exp_values: Vec<f64> = outputs.iter().map(|&x| (x - max).exp()).collect();
-    let sum: f64 = exp_values.iter().sum();
-    exp_values.iter().map(|&x| x / sum).collect()
-}
-
 pub struct Network(pub Vec<Layer>);
 
 impl Network {
@@ -21,57 +13,6 @@ impl Network {
                 .map(|line| Layer::new(String::from(line)).unwrap())
                 .collect(),
         ))
-    }
-
-    #[allow(dead_code)]
-    pub fn new_random(
-        mut nb_input: u32,
-        nb_perceptron: Vec<u32>,
-        w_range: (f64, f64),
-        b_range: (f64, f64),
-    ) -> Network {
-        Network(
-            nb_perceptron
-                .iter()
-                .map(|&nb| {
-                    let r = Layer::new_random(nb, nb_input, &w_range, &b_range);
-                    nb_input = nb;
-                    r
-                })
-                .collect(),
-        )
-    }
-
-    #[allow(dead_code)]
-    pub fn new_random_with_output_activation(
-        mut nb_input: u32,
-        nb_perceptron: Vec<u32>,
-        w_range: (f64, f64),
-        b_range: (f64, f64),
-        output_activation: &str,
-    ) -> Network {
-        let num_layers = nb_perceptron.len();
-        Network(
-            nb_perceptron
-                .iter()
-                .enumerate()
-                .map(|(idx, &nb)| {
-                    let r = if idx == num_layers - 1 {
-                        Layer::new_random_with_activation(
-                            nb,
-                            nb_input,
-                            &w_range,
-                            &b_range,
-                            output_activation,
-                        )
-                    } else {
-                        Layer::new_random(nb, nb_input, &w_range, &b_range)
-                    };
-                    nb_input = nb;
-                    r
-                })
-                .collect(),
-        )
     }
 
     pub fn new_random_he(
@@ -275,72 +216,6 @@ impl Network {
         let exp_values: Vec<f64> = outputs.iter().map(|&x| (x - max).exp()).collect();
         let sum: f64 = exp_values.iter().sum();
         exp_values.iter().map(|&x| x / sum).collect()
-    }
-
-    #[allow(dead_code)]
-    pub fn train_batch(&mut self, batch: &[(Vec<f64>, Vec<f64>)], learning_rate: f64) {
-        if batch.is_empty() {
-            return;
-        }
-
-        let num_layers = self.0.len();
-        let mut accumulated_deltas: Vec<Vec<f64>> = vec![];
-        let mut accumulated_inputs: Vec<Vec<f64>> = vec![];
-
-        for (inputs, targets) in batch {
-            let all_outputs = self.forward(inputs);
-            let mut deltas: Vec<Vec<f64>> = vec![];
-
-            deltas.push(
-                self.0
-                    .last()
-                    .unwrap()
-                    .backward_output(all_outputs.last().unwrap(), targets),
-            );
-            for index in (0..self.0.len() - 1).rev() {
-                deltas.push(self.0[index].backward_hidden(
-                    &all_outputs[index + 1],
-                    deltas.last().unwrap(),
-                    &self.0[index + 1],
-                ));
-            }
-            deltas.reverse();
-
-            if accumulated_deltas.is_empty() {
-                for layer_idx in 0..num_layers {
-                    accumulated_deltas.push(deltas[layer_idx].clone());
-                    accumulated_inputs.push(all_outputs[layer_idx].clone());
-                }
-            } else {
-                for layer_idx in 0..num_layers {
-                    for neuron_idx in 0..deltas[layer_idx].len() {
-                        accumulated_deltas[layer_idx][neuron_idx] += deltas[layer_idx][neuron_idx];
-                    }
-                    for input_idx in 0..all_outputs[layer_idx].len() {
-                        accumulated_inputs[layer_idx][input_idx] +=
-                            all_outputs[layer_idx][input_idx];
-                    }
-                }
-            }
-        }
-
-        let batch_size = batch.len() as f64;
-
-        for layer_idx in 0..num_layers {
-            for delta in &mut accumulated_deltas[layer_idx] {
-                *delta /= batch_size;
-            }
-
-            for input in &mut accumulated_inputs[layer_idx] {
-                *input /= batch_size;
-            }
-
-            self.0[layer_idx].update_weights(
-                &accumulated_deltas[layer_idx],
-                &accumulated_inputs[layer_idx],
-                learning_rate,
-            );
-        }
     }
 
     pub fn to_string(&self) -> String {

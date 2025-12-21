@@ -81,12 +81,27 @@ fn generate_networks(config_file: &str, nb: usize) -> Result<usize, String> {
     let mut layers = config.hidden_layers.clone();
     layers.push(output_size);
 
-    let weight_range = (config.weight_min, config.weight_max);
-    let bias_range = (config.bias_min, config.bias_max);
+    // Get dropout rates from configuration
+    let dropout_rates = config.get_dropout_rates();
+    // Use 'linear' activation for output layer (softmax is applied at network level)
+    let output_activation = "linear";
 
-    // Generate N networks
+    // Validate that dropout_rates length matches number of layers
+    if dropout_rates.len() != layers.len() {
+        return Err(format!(
+            "Dropout rates count ({}) must match number of layers ({})",
+            dropout_rates.len(),
+            layers.len()
+        ));
+    }
+
     for i in 1..=nb {
-        let network = Network::new_random(input_size, layers.clone(), weight_range, bias_range);
+        let network = Network::new_random_he(
+            input_size,
+            layers.clone(),
+            dropout_rates.clone(),
+            output_activation,
+        );
 
         let filename = if nb == 1 {
             format!("{}.nn", base_name)

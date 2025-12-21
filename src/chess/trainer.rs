@@ -37,7 +37,7 @@ pub fn run_train(config: &Config) -> Result<(), String> {
         println!("Loading existing network from '{}'...", config.loadfile);
         let mut net = Network::load(&config.loadfile)?;
 
-        let dropout_rates = vec![0.2, 0.2, 0.1, 0.0, 0.0];
+        let dropout_rates = vec![0.3, 0.2, 0.1, 0.05, 0.0];
         println!("  Reconfiguring dropout rates: {:?}", dropout_rates);
         for (idx, layer) in net.0.iter_mut().enumerate() {
             if idx < dropout_rates.len() {
@@ -65,7 +65,8 @@ pub fn run_train(config: &Config) -> Result<(), String> {
     // Shuffle the dataset to ensure random distribution in train/val split
     println!("Shuffling dataset...");
     #[allow(deprecated)]
-    let mut rng = thread_rng();
+    use rand::SeedableRng;
+    let mut rng = rand::rngs::StdRng::seed_from_u64(42);
     training_data.shuffle(&mut rng);
 
     let (train_set, val_set) = split_dataset(&training_data, train_config.train_ratio);
@@ -95,7 +96,7 @@ fn create_chess_network(train_config: &TrainingConfig) -> Result<Network, String
 
     println!("  Architecture: {} -> {:?}", input_size, layers);
 
-    let dropout_rates = vec![0.2, 0.2, 0.1, 0.0, 0.0];
+    let dropout_rates = vec![0.4, 0.3, 0.2, 0.1, 0.0];
 
     println!("  Using He initialization with ReLU activation");
     println!("  Dropout rates: {:?}", dropout_rates);
